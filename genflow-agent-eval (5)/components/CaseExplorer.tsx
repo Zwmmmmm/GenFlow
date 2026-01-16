@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Edit3, Code, Database, MessageSquare, CheckCircle2, AlertCircle, XCircle,
-  ChevronDown, ChevronRight, ChevronLeft, FolderOpen, Terminal, Activity, Save, X, FileCode, Info, Bug, Star
+  ChevronDown, ChevronRight, ChevronLeft, FolderOpen, Terminal, Activity, Save, X, FileCode, Info, Bug, Star, MessageSquareQuote
 } from 'lucide-react';
 import { TestCase, ScoreLevel, EvalTask } from '../types';
 import { CATEGORY_COLORS } from '../constants';
@@ -45,8 +45,17 @@ interface TraceStepItemProps {
 }
 
 const TraceStepItem = ({ step, idx, isEditing, editValue, onEditChange }: TraceStepItemProps) => {
-  if (!step) return null; // Defensive check
+  if (!step) return null;
   const isFaulty = (step?.score ?? 2) < 2;
+
+  const parseComment = (comment: string) => {
+    try {
+      // The simulated response generates stringified JSON in the comment field
+      return JSON.parse(comment);
+    } catch (e) {
+      return { score: null, reason: comment };
+    }
+  };
 
   return (
     <div className="relative group animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -96,30 +105,51 @@ const TraceStepItem = ({ step, idx, isEditing, editValue, onEditChange }: TraceS
           </div>
         </div>
 
-        {/* Col 3: Dimension Metrics (30%) */}
+        {/* Col 3: Dimension Metrics (30%) - REFINED FOR JSON PARSING */}
         <div className="col-span-4 bg-slate-50/40 p-5 flex flex-col">
           <div className="text-[9px] font-black text-slate-400 tracking-widest uppercase mb-5 flex items-center gap-1.5">
             <Star size={12} className="text-yellow-500 fill-yellow-500" /> Dimension Analysis
           </div>
-          <div className="space-y-5">
+          <div className="space-y-6 flex-1">
             {step?.dimensions?.length > 0 ? (
-              step.dimensions.map((d: any, i: number) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-slate-600">{d?.name || 'Metric'}</span>
-                    <span className={`text-[9px] font-black uppercase tracking-tighter ${d?.score === 2 ? 'text-green-600' : d?.score === 1 ? 'text-yellow-600' : 'text-red-500'}`}>
-                      {d?.score === 2 ? 'EXCELLENT' : d?.score === 1 ? 'PASS' : 'FAIL'}
-                    </span>
+              step.dimensions.map((d: any, i: number) => {
+                const parsed = parseComment(d.comment);
+                const scoreValue = parsed.score ?? d.score;
+                const reasonText = parsed.reason || d.comment;
+
+                return (
+                  <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight">{d?.name || 'Metric'}</span>
+                      <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md ${
+                        scoreValue === 2 ? 'bg-green-50 text-green-600' : 
+                        scoreValue === 1 ? 'bg-yellow-50 text-yellow-600' : 
+                        'bg-red-50 text-red-600'
+                      }`}>
+                        {scoreValue === 2 ? '优质 (2分)' : scoreValue === 1 ? '可用 (1分)' : '不可用 (0分)'}
+                      </span>
+                    </div>
+
+                    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-700 ease-out ${
+                          scoreValue === 2 ? 'bg-green-500' : scoreValue === 1 ? 'bg-yellow-400' : 'bg-red-500'
+                        }`}
+                        style={{ width: scoreValue === 2 ? '100%' : scoreValue === 1 ? '50%' : '15%' }}
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-50">
+                       <div className="flex items-start gap-1.5">
+                          <MessageSquareQuote size={12} className="text-blue-400 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
+                            {reasonText}
+                          </p>
+                       </div>
+                    </div>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                    <div 
-                      className={`h-full transition-all duration-700 ease-out rounded-full ${d?.score === 2 ? 'bg-green-500' : d?.score === 1 ? 'bg-yellow-400' : 'bg-red-500'}`}
-                      style={{ width: d?.score === 2 ? '100%' : d?.score === 1 ? '60%' : '20%' }}
-                    />
-                  </div>
-                  {d?.comment && <p className="text-[9px] text-slate-400 font-medium italic">"{d.comment}"</p>}
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-300 opacity-30 py-10">
                 <Bug size={32} />
@@ -141,7 +171,7 @@ export interface CaseExplorerProps {
   allCases: TestCase[];
   initialSelectedCaseId?: string;
   onUpdateCase: (updatedCase: TestCase) => void;
-  onBack: () => void; // New onBack handler for Breadcrumb navigation
+  onBack: () => void;
 }
 
 export const CaseExplorer: React.FC<CaseExplorerProps> = ({ 
@@ -193,7 +223,6 @@ export const CaseExplorer: React.FC<CaseExplorerProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden font-sans">
-      {/* --- NEW: BREADCRUMB HEADER --- */}
       <div className="px-8 py-4 bg-white border-b border-slate-200 flex items-center gap-3 shrink-0">
         <button 
           onClick={onBack} 
@@ -276,7 +305,6 @@ export const CaseExplorer: React.FC<CaseExplorerProps> = ({
           <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-12 pb-12">
               
-              {/* CLEAN QUERY & RAW LOG MODULES */}
               <div className="grid grid-cols-12 gap-8 items-start">
                 <div className="col-span-8 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50 group">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase mb-5 flex items-center gap-2 tracking-widest group-hover:text-blue-500 transition"><MessageSquare size={16} /> Parsed User Instruction</h3>
@@ -302,9 +330,7 @@ export const CaseExplorer: React.FC<CaseExplorerProps> = ({
                 </div>
               </div>
 
-              {/* TRACE STEPS (Using 3-Column TraceStepItem) */}
               <div className="space-y-20 py-4 relative">
-                {/* Connecting line */}
                 <div className="absolute left-[20px] top-[20px] bottom-[20px] w-0.5 bg-slate-100 hidden md:block" />
                 
                 {(selectedCase.steps || []).map((step, idx) => (
@@ -323,7 +349,6 @@ export const CaseExplorer: React.FC<CaseExplorerProps> = ({
                 ))}
               </div>
 
-              {/* FINAL JUDGE */}
               <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm hover:shadow-lg transition-all group">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center gap-2 group-hover:text-blue-500 transition">
                   <CheckCircle2 size={16} /> AI Judge Final Commentary

@@ -118,13 +118,27 @@ const simulateEvaluation = (
           if (stepType === 'tool' && activeGT.tool && actualData.tool !== expectedData.tool) score = 0;
         }
         
-        // Generate Mock Comment based on System Prompt presence
-        let comment = "";
-        if (score === 2) comment = `通过维度 [${config.name}] 审计：表现优异，完全符合 System Prompt 设定的预期目标。`;
-        else if (score === 1) comment = `通过维度 [${config.name}] 审计：基本达标，但在部分细节上未能完美遵循提示词指令。`;
-        else comment = `通过维度 [${config.name}] 审计：识别到严重偏离，与 System Prompt 要求的标准不符。`;
+        // Generate Realistic Mock Comment following the System Prompt Output Format
+        let reason = "";
+        if (config.name === '编排准确率') {
+          if (score === 2) reason = "意图识别完全准确，核心参数提取完整，符合 Ground Truth。";
+          else if (score === 1) reason = "意图正确，但遗漏了部分非核心过滤参数，不影响主流程执行。";
+          else reason = "意图识别错误，未能正确提取核心查询关键词。";
+        } else if (config.name === '工具输出效果') {
+          if (score === 2) reason = "工具返回数据精准命中用户需求，Top 1 结果与指令高度相关且无噪声。";
+          else if (score === 1) reason = "召回了目标文件，但结果列表中混杂了部分不相关的历史文档，信噪比一般。";
+          else reason = "API 调用成功但返回空结果，或结果与用户搜索意图完全不符。";
+        } else if (config.name === '总结输出效果') {
+          if (score === 2) reason = "回复结构清晰，使用了 Markdown 分点，且准确总结了工具返回的关键信息。";
+          else if (score === 1) reason = "内容准确，但仅简单罗列了文件名，缺乏结构化整理和下一步建议。";
+          else reason = "检测到幻觉，回复中提到了工具结果中不存在的日期信息。";
+        }
 
-        return { name: config.name, score, comment };
+        return { 
+          name: config.name, 
+          score, 
+          comment: JSON.stringify({ score, reason }, null, 2) 
+        };
       });
     };
 
